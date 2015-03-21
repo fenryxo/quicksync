@@ -170,6 +170,7 @@ def build(ctx):
 	CFLAGS=""
 	
 	HELLO = "hello"
+	CRAWLER="crawler"
 	packages = 'dioritegtk-{0} dioriteglib-{0} '.format(ctx.env.DIORITE_SERIES)
 	packages += 'gtk+-3.0 gdk-3.0 glib-2.0 gio-2.0'
 	uselib = 'DIORITEGTK DIORITEGLIB GTK+ GDK GLIB GTHREAD GIO'
@@ -181,6 +182,17 @@ def build(ctx):
 		uselib = uselib,
 		vala_defines = vala_defines,
 		defines = ['G_LOG_DOMAIN="%s"' % HELLO],
+		vapi_dirs = ['vapi'],
+		vala_target_glib = "2.32",
+	)
+	
+	ctx.program(
+		target = "%s-%s" % (APPNAME, CRAWLER),
+		source = ctx.path.ant_glob('src/%s/*.vala' % CRAWLER),
+		packages = packages,
+		uselib = uselib,
+		vala_defines = vala_defines,
+		defines = ['G_LOG_DOMAIN="%s"' % CRAWLER],
 		vapi_dirs = ['vapi'],
 		vala_target_glib = "2.32",
 	)
