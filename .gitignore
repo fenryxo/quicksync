@@ -2,3 +2,4 @@
 .lock*
 build
 *.pyc
+tmp
