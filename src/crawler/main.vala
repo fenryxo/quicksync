@@ -27,12 +27,14 @@ namespace QuickSync
 
 struct Args
 {
+	static bool action_hash = false;
 	static bool debug = false;
 	static bool verbose = false;
 	static string? log_file = null;
 	
 	public static const OptionEntry[] options =
 	{
+		{ "hash", '\0', 0, OptionArg.NONE, ref Args.action_hash, "Hash directory tree", null },
 		{ "verbose", 'v', 0, OptionArg.NONE, ref Args.verbose, "Print informational messages", null },
 		{ "debug", 'D', 0, OptionArg.NONE, ref Args.debug, "Print debugging messages", null },
 		{ "log-file", 'L', 0, OptionArg.FILENAME, ref Args.log_file, "Log to file", "FILE" },
@@ -73,28 +75,35 @@ public int main(string[] args)
 	 : (Args.verbose ? GLib.LogLevelFlags.LEVEL_INFO: GLib.LogLevelFlags.LEVEL_WARNING));
 	
 	
-	if (args.length < 2)
+	if (Args.action_hash)
 	{
-		stderr.printf("Error: Not enough arguments.\n");
-		return 1;
+		if (args.length < 2)
+		{
+			stderr.printf("Error: Not enough arguments.\n");
+			return 1;
+		}
+		
+		var target_dir = File.new_for_path(args[1]);
+		if (!target_dir.query_exists())
+		{
+			stderr.printf("Error: The directory %s doesn't exist.\n", target_dir.get_path());
+			return 1;
+		}
+		
+		file_hasher = new FileHasher(ChecksumType.SHA256);
+		var cancellable = new Cancellable();
+		enumerate(target_dir, cancellable);
+		file_hasher.wait();
+		var loop = new MainLoop();
+		Timeout.add_seconds(1, () => {loop.quit(); return false;});
+		loop.run();
+		return 0;
 	}
 	
-	var target_dir = File.new_for_path(args[1]);
-	if (!target_dir.query_exists())
-	{
-		stderr.printf("Error: The directory %s doesn't exist.\n", target_dir.get_path());
-		return 1;
-	}
-	
-	file_hasher = new FileHasher(ChecksumType.SHA256);
-	var cancellable = new Cancellable();
-	enumerate(target_dir, cancellable);
-	file_hasher.wait();
-	var loop = new MainLoop();
-	Timeout.add_seconds(1, () => {loop.quit(); return false;});
-	loop.run();
-	return 0;
+	stderr.printf("Error: No action specified.\n");
+	return 1;
 }
+
 
 void enumerate(File dir, Cancellable? cancellable=null)
 {
