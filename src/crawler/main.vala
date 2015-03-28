@@ -27,8 +27,8 @@ namespace QuickSync
 
 struct Args
 {
-	static bool debug;
-	static bool verbose;
+	static bool debug = false;
+	static bool verbose = false;
 	static string? log_file = null;
 	
 	public static const OptionEntry[] options =
@@ -39,6 +39,8 @@ struct Args
 		{ null }
 	};
 }
+
+FileHasher file_hasher;
 
 public int main(string[] args)
 {
@@ -70,6 +72,7 @@ public int main(string[] args)
 	Diorite.Logger.init(log != null ? log : stderr, Args.debug ? GLib.LogLevelFlags.LEVEL_DEBUG
 	 : (Args.verbose ? GLib.LogLevelFlags.LEVEL_INFO: GLib.LogLevelFlags.LEVEL_WARNING));
 	
+	
 	if (args.length < 2)
 	{
 		stderr.printf("Error: Not enough arguments.\n");
@@ -83,19 +86,21 @@ public int main(string[] args)
 		return 1;
 	}
 	
-	
+	file_hasher = new FileHasher(ChecksumType.SHA256);
 	var cancellable = new Cancellable();
 	enumerate(target_dir, cancellable);
+	file_hasher.wait();
+	var loop = new MainLoop();
+	Timeout.add_seconds(1, () => {loop.quit(); return false;});
+	loop.run();
 	return 0;
 }
 
 void enumerate(File dir, Cancellable? cancellable=null)
 {
-	message("%s", dir.get_path());
 	var enumerator = new TreeEnumerator(TreeEnumerator.FILE_ATTRIBUTES, cancellable);
 	enumerator.error_occured.connect(on_error_occured);
-	enumerator.dir_found.connect(on_node_found);
-	enumerator.file_found.connect(on_node_found);
+	enumerator.file_found.connect(on_file_found);
 	enumerator.link_found.connect(on_node_found);
 	enumerator.special_found.connect(on_node_found);
 	enumerator.push_dir(dir);
@@ -110,6 +115,45 @@ void on_error_occured(TreeEnumerator enumerator, File dir, GLib.Error e)
 void on_node_found(TreeEnumerator enumerator, File file, FileInfo info)
 {
 	message("%s", file.get_path());
+}
+
+void on_file_found(TreeEnumerator enumerator, File file, FileInfo info)
+{
+	var hash = hash_file(file, info, enumerator.cancellable);
+	if (hash != null)
+		message("Hash found: %s %s", hash, file.get_path());
+}
+
+public const string XATTR_CHECKSUM_MTIME = "xattr::quicksync-hash-mtime";
+public const string XATTR_CHECKSUM_SHA256 = "xattr::quicksync-hash-sha256";
+
+string? hash_file(File file, FileInfo info, Cancellable? cancellable=null) throws Error
+{
+	var mtime_timeval = info.get_modification_time();
+	int64 mtime = mtime_timeval.tv_sec * 1000000L + mtime_timeval.tv_usec;
+	string mtime_hex;
+	Diorite.int64_to_hex(mtime, out mtime_hex);
+	string? hash = info.get_attribute_string(XATTR_CHECKSUM_SHA256);
+	if (mtime_hex == info.get_attribute_string(XATTR_CHECKSUM_MTIME)
+	&& hash != null && hash.length == 2 * file_hasher.checksum_type.get_length())
+		return hash;
+	
+	file_hasher.push_file(file, (file, hash, e) =>
+	{
+		if (e != null)
+		{
+			warning("Hash error: %s %s", file.get_path(), e.message);
+			return;
+		}
+			
+		message("Hash done: %s %s", hash, file.get_path());
+		file.set_attribute_string(XATTR_CHECKSUM_SHA256, hash, FileQueryInfoFlags.NONE, cancellable);
+		file.set_attribute_string(XATTR_CHECKSUM_MTIME, mtime_hex, FileQueryInfoFlags.NONE, cancellable);
+		info.set_attribute_string(XATTR_CHECKSUM_SHA256, hash);
+		info.set_attribute_string(XATTR_CHECKSUM_MTIME, mtime_hex);
+		
+	}, cancellable);
+	return null;
 }
 
 } // namespace QuickSync

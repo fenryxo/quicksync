@@ -127,7 +127,6 @@ public class FileHasher : GLib.Object
 				if (workers == null)
 					workers = new ThreadPool<Task>.with_owned_data(worker_func, max_jobs, false);
 			
-				debug("Push file to hash: %s", file.get_path());
 				workers.add(new Task(file, (owned) callback, cancellable));
 			}
 			catch (ThreadError e)
@@ -165,7 +164,6 @@ public class FileHasher : GLib.Object
 		try
 		{
 			task.check_cancelled();
-			message("HashFile task in thread %p: %s", Thread.self<void*>(), task.file.get_path());
 			task.hash = hash_file_sync(checksum_type, task.file, task.cancellable);
 		}
 		catch (GLib.Error e)
