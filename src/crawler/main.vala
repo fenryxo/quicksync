@@ -28,6 +28,7 @@ namespace QuickSync
 struct Args
 {
 	static bool action_hash = false;
+	static bool action_info = false;
 	static bool debug = false;
 	static bool verbose = false;
 	static string? log_file = null;
@@ -35,6 +36,7 @@ struct Args
 	public static const OptionEntry[] options =
 	{
 		{ "hash", '\0', 0, OptionArg.NONE, ref Args.action_hash, "Hash directory tree", null },
+		{ "info", '\0', 0, OptionArg.NONE, ref Args.action_info, "Show node info", null },
 		{ "verbose", 'v', 0, OptionArg.NONE, ref Args.verbose, "Print informational messages", null },
 		{ "debug", 'D', 0, OptionArg.NONE, ref Args.debug, "Print debugging messages", null },
 		{ "log-file", 'L', 0, OptionArg.FILENAME, ref Args.log_file, "Log to file", "FILE" },
@@ -97,6 +99,20 @@ public int main(string[] args)
 		var loop = new MainLoop();
 		Timeout.add_seconds(1, () => {loop.quit(); return false;});
 		loop.run();
+		return 0;
+	}
+	
+	if (Args.action_info)
+	{
+		if (args.length < 2)
+		{
+			stderr.printf("Error: Not enough arguments.\n");
+			return 1;
+		}
+		
+		var file = File.new_for_path(args[1]);
+		var node = Node.for_file(file);
+		message("File info %s: %s", file.get_path(), node.to_string());
 		return 0;
 	}
 	
