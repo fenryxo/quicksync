@@ -14,6 +14,6 @@ run()
 {
     program="$1"
     shift
-    ./waf -v && build/$program -D "$@"
+    ./waf -v && time build/$program -D "$@"
 
 }
