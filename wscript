@@ -118,7 +118,7 @@ def configure(ctx):
 	ctx.env.VALA_DEFINES = []
 	ctx.msg('Install prefix', ctx.options.prefix, "GREEN")
 	ctx.load('compiler_c vala')
-	ctx.check_vala(min_version=(0,22,1))
+	ctx.check_vala(min_version=(0, 26, 1))
 	# Don't be quiet
 	ctx.env.VALAFLAGS.remove("--quiet")
 	ctx.env.append_value("VALAFLAGS", "-v")
@@ -143,7 +143,7 @@ def configure(ctx):
 	ctx.env.append_unique("LINKFLAGS", ["-Wl,--no-undefined", "-Wl,--as-needed"])
 	
 	# Check dependencies
-	ctx.env.DIORITE_SERIES = DIORITE_SERIES = "0.1"
+	ctx.env.DIORITE_SERIES = DIORITE_SERIES = "0.3"
 	ctx.check_dep('glib-2.0', 'GLIB', '2.32')
 	ctx.check_dep('gio-2.0', 'GIO', '2.32')
 	ctx.check_dep('gtk+-3.0', 'GTK+', '3.4')
